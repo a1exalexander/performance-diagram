@@ -161,7 +161,7 @@ function App() {
             <th className={clsx(styles.th, styles.periodHead)}>Period</th>
             {map(periods, (period) => {
               return (
-                <th className={styles.th} key={period.id}>
+                <th className={clsx(styles.th, styles.periodTh)} key={period.id}>
                   <input
                     className={styles.input}
                     type="text"
