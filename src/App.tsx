@@ -15,8 +15,7 @@ import html2canvas from 'html2canvas';
 import { map, keys, find, each, findIndex, filter } from 'lodash';
 import clsx from 'clsx';
 import styles from './App.module.css';
-
-const colors: string[] = ['#8884d8', '#82ca9d', '#ffc658'];
+import { colors } from './data/colors';
 
 const MAX_MARK = 10;
 
@@ -161,7 +160,9 @@ function App() {
             <th className={clsx(styles.th, styles.periodHead)}>Period</th>
             {map(periods, (period) => {
               return (
-                <th className={clsx(styles.th, styles.periodTh)} key={period.id}>
+                <th
+                  className={clsx(styles.th, styles.periodTh)}
+                  key={period.id}>
                   <input
                     className={styles.input}
                     type="text"
