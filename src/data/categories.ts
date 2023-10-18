@@ -113,4 +113,17 @@ export const categories = [
       "Competitor Analysis",
     ],
   },
+  {
+    name: "design",
+    options: [
+      "UI",
+      "UX",
+      "Communication",
+      "Leadership",
+      "Soft Skills",
+      "Tools",
+      "PM",
+      "English",
+    ],
+  },
 ];

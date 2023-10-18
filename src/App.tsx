@@ -8,7 +8,7 @@ import {
   PolarAngleAxis,
   PolarRadiusAxis,
 } from "recharts";
-import { useLocalStorage } from "usehooks-ts";
+import { useBoolean, useLocalStorage, useTimeout } from "usehooks-ts";
 import { addQuarters, format, startOfYear } from "date-fns";
 import downloadjs from "downloadjs";
 import html2canvas from "html2canvas";
@@ -48,19 +48,25 @@ interface PeriodInterface {
 
 const defaultCategory = first(categories)?.name as string;
 
+const defaultPeriods = map(range(12), (i) => ({
+  id: i.toString(),
+  value: format(addQuarters(startOfYear(new Date()), i), "QQQQ yyyy"),
+  color: colors[i],
+}));
+const defaultSubjects =
+  find(categories, ({ name }) => toLower(name) === toLower(defaultCategory))
+    ?.options || [];
+
 function App() {
   const chartRef = useRef<HTMLDivElement>(null);
+  const reseted = useBoolean(false);
   const [activeCategory, setActiveCategory] = useLocalStorage<string>(
     "activeSubject",
     defaultCategory
   );
   const [periods, setPeriods] = useLocalStorage<PeriodInterface[]>(
     "periods",
-    map(range(12), (i) => ({
-      id: i.toString(),
-      value: format(addQuarters(startOfYear(new Date()), i), "QQQQ yyyy"),
-      color: colors[i],
-    }))
+    defaultPeriods
   );
   const [subjects, setSubjects] = useLocalStorage<string[]>(
     "subjects",
@@ -123,6 +129,17 @@ function App() {
     }
   };
 
+  useTimeout(() => reseted.setFalse(), reseted.value ? 100 : null);
+
+  const onReset = () => {
+    reseted.setTrue();
+    localStorage.clear();
+    setActiveCategory(defaultCategory);
+    setPeriods([...defaultPeriods]);
+    setSubjects([...defaultSubjects]);
+    setMarks([]);
+  };
+
   return (
     <main className={styles.container}>
       <div className={styles.chartWrapper} ref={chartRef}>
@@ -165,134 +182,141 @@ function App() {
           })}
         </RadarChart>
       </div>
-      <button className={styles.button} onClick={onDownloadImage}>
-        Download Image
-      </button>
+      <div className={styles.buttons}>
+        <button className={styles.button} onClick={onDownloadImage}>
+          Download Image
+        </button>
+        <button className={styles.button} onClick={onReset}>
+          Reset
+        </button>
+      </div>
       <div className={styles.tableWrapper}>
-        <table className={styles.table}>
-          <thead>
-            <tr>
-              <th className={clsx(styles.th, styles.periodHead)}>Period</th>
-              {map(periods, (period) => {
-                return (
-                  <th
-                    className={clsx(styles.th, styles.periodTh)}
-                    key={period.id}
-                    style={{ backgroundColor: period.color }}
-                  >
-                    <input
-                      className={styles.input}
-                      type="text"
-                      value={period.value}
-                      onChange={(e) => {
-                        setPeriods((prev) => {
-                          const newData = [...prev];
-                          const idx = findIndex(newData, { id: period.id });
-                          if (idx >= 0) {
-                            newData.splice(idx, 1, {
-                              ...newData[idx],
-                              value: e.target.value,
-                            });
-                          }
-                          return newData;
-                        });
-                      }}
-                    />
-                  </th>
-                );
-              })}
-            </tr>
-            <tr>
-              <th className={styles.th}>
-                Subject
-                <select
-                  className={styles.select}
-                  value={activeCategory}
-                  onChange={(e) => onChangeSubjects(e.target.value)}
-                >
-                  {map(map(categories, "name"), (name) => (
-                    <option key={name} value={name}>
-                      {name}
-                    </option>
-                  ))}
-                </select>
-              </th>
-              {map(periods, (period) => (
-                <th key={period.id} className={styles.th}>
-                  Mark
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {map(subjects, (subject) => {
-              return (
-                <tr key={subject}>
-                  <td className={styles.td}>
-                    <input
-                      type="text"
-                      className={styles.input}
-                      value={subject}
-                      onChange={(e) => {
-                        setSubjects((prev) => {
-                          const newData = [...prev];
-                          const idx = findIndex(
-                            newData,
-                            (dataName) => dataName === subject
-                          );
-                          if (idx >= 0) {
-                            newData.splice(idx, 1, e.target.value);
-                          }
-                          return newData;
-                        });
-                      }}
-                    />
-                  </td>
-                  {map(periods, (period) => {
-                    const mark = find(marks, {
-                      periodId: period.id,
-                      subjectId: subject,
-                    });
-                    return (
-                      <td className={styles.td} key={period.id}>
-                        <input
-                          className={styles.input}
-                          type="number"
-                          tabIndex={period.value ? undefined : -1}
-                          value={mark?.value}
-                          min={0}
-                          max={MAX_MARK}
-                          onChange={(e) => {
-                            setMarks((prev) => {
-                              const newData = [...prev];
-                              const idx = findIndex(newData, {
-                                periodId: period.id,
-                                subjectId: subject,
+        {!reseted.value && (
+          <table className={styles.table}>
+            <thead>
+              <tr>
+                <th className={clsx(styles.th, styles.periodHead)}>Period</th>
+                {map(periods, (period) => {
+                  return (
+                    <th
+                      className={clsx(styles.th, styles.periodTh)}
+                      key={period.id}
+                      style={{ backgroundColor: period.color }}
+                    >
+                      <input
+                        className={styles.input}
+                        type="text"
+                        value={period.value}
+                        onChange={(e) => {
+                          setPeriods((prev) => {
+                            const newData = [...prev];
+                            const idx = findIndex(newData, { id: period.id });
+                            if (idx >= 0) {
+                              newData.splice(idx, 1, {
+                                ...newData[idx],
+                                value: e.target.value,
                               });
-                              if (idx >= 0) {
-                                newData.splice(idx, 1, {
-                                  ...newData[idx],
-                                  value: parseFloat(e.target.value),
-                                });
-                              } else {
-                                newData.push({
+                            }
+                            return newData;
+                          });
+                        }}
+                      />
+                    </th>
+                  );
+                })}
+              </tr>
+              <tr>
+                <th className={styles.th}>
+                  Subject
+                  <select
+                    className={styles.select}
+                    value={activeCategory}
+                    onChange={(e) => onChangeSubjects(e.target.value)}
+                  >
+                    {map(map(categories, "name"), (name) => (
+                      <option key={name} value={name}>
+                        {name}
+                      </option>
+                    ))}
+                  </select>
+                </th>
+                {map(periods, (period) => (
+                  <th key={period.id} className={styles.th}>
+                    Mark
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {map(subjects, (subject) => {
+                return (
+                  <tr key={subject}>
+                    <td className={styles.td}>
+                      <input
+                        type="text"
+                        className={styles.input}
+                        value={subject}
+                        onChange={(e) => {
+                          setSubjects((prev) => {
+                            const newData = [...prev];
+                            const idx = findIndex(
+                              newData,
+                              (dataName) => dataName === subject
+                            );
+                            if (idx >= 0) {
+                              newData.splice(idx, 1, e.target.value);
+                            }
+                            return newData;
+                          });
+                        }}
+                      />
+                    </td>
+                    {map(periods, (period) => {
+                      const mark = find(marks, {
+                        periodId: period.id,
+                        subjectId: subject,
+                      });
+                      return (
+                        <td className={styles.td} key={period.id}>
+                          <input
+                            className={styles.input}
+                            type="number"
+                            tabIndex={period.value ? undefined : -1}
+                            value={mark?.value}
+                            min={0}
+                            max={MAX_MARK}
+                            onChange={(e) => {
+                              setMarks((prev) => {
+                                const newData = [...prev];
+                                const idx = findIndex(newData, {
                                   periodId: period.id,
                                   subjectId: subject,
-                                  value: parseFloat(e.target.value),
                                 });
-                              }
-                              return newData;
-                            });
-                          }}
-                        />
-                      </td>
-                    );
-                  })}
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
+                                if (idx >= 0) {
+                                  newData.splice(idx, 1, {
+                                    ...newData[idx],
+                                    value: parseFloat(e.target.value),
+                                  });
+                                } else {
+                                  newData.push({
+                                    periodId: period.id,
+                                    subjectId: subject,
+                                    value: parseFloat(e.target.value),
+                                  });
+                                }
+                                return newData;
+                              });
+                            }}
+                          />
+                        </td>
+                      );
+                    })}
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        )}
       </div>
     </main>
   );

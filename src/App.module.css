@@ -63,7 +63,12 @@
   margin-left: 8px;
 }
 
-.button {
+.buttons {
+  display: flex;
+  gap: 32px;
   margin-bottom: 32px;
+}
+
+.button {
   padding: 10px 32px;
 }
