@@ -6,9 +6,24 @@
   padding: 12px 40px 80px;
 }
 
+.tableWrapper {
+  max-width: 100%;
+  overflow-x: scroll;
+}
+
 .table {
+ 
   border-collapse: collapse;
   /* border: 1px solid black; */
+}
+
+
+
+.th, .td {
+  min-width: 140px;
+  &:first-child {
+    min-width: 200px;
+  }
 }
 
 .th {

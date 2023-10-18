@@ -1,5 +1,5 @@
-import { useMemo, useRef } from 'react';
-import * as subjectsDB from './data/subjects';
+import { useMemo, useRef } from "react";
+import { categories } from "./data/categories";
 import {
   Radar,
   Legend,
@@ -7,15 +7,24 @@ import {
   PolarGrid,
   PolarAngleAxis,
   PolarRadiusAxis,
-} from 'recharts';
-import { useLocalStorage } from 'usehooks-ts';
-import { format } from 'date-fns';
-import downloadjs from 'downloadjs';
-import html2canvas from 'html2canvas';
-import { map, keys, find, each, findIndex, filter } from 'lodash';
-import clsx from 'clsx';
-import styles from './App.module.css';
-import { colors } from './data/colors';
+} from "recharts";
+import { useLocalStorage } from "usehooks-ts";
+import { addQuarters, format, startOfYear } from "date-fns";
+import downloadjs from "downloadjs";
+import html2canvas from "html2canvas";
+import {
+  map,
+  find,
+  each,
+  findIndex,
+  filter,
+  range,
+  first,
+  toLower,
+} from "lodash";
+import clsx from "clsx";
+import styles from "./App.module.css";
+import { colors } from "./data/colors";
 
 const MAX_MARK = 10;
 
@@ -34,35 +43,39 @@ interface MarkInterface {
 interface PeriodInterface {
   id: string;
   value: string;
+  color: string;
 }
 
-interface SubjectInterface {
-  id: string;
-  value: string;
-}
+const defaultCategory = first(categories)?.name as string;
 
 function App() {
   const chartRef = useRef<HTMLDivElement>(null);
-  const [activeSubject, setActiveSubject] = useLocalStorage<
-    keyof typeof subjectsDB
-  >('activeSubject', 'development');
-  const [periods, setPeriods] = useLocalStorage<PeriodInterface[]>('periods', [
-    { id: '1', value: format(new Date(), 'MMMM yyyy') },
-    { id: '2', value: '' },
-    { id: '3', value: '' },
-    { id: '4', value: '' },
-    { id: '5', value: '' },
-    { id: '6', value: '' },
-  ]);
-  const [subjects, setSubjects] = useLocalStorage<SubjectInterface[]>(
-    'subjects',
-    subjectsDB[activeSubject]
+  const [activeCategory, setActiveCategory] = useLocalStorage<string>(
+    "activeSubject",
+    defaultCategory
   );
-  const [marks, setMarks] = useLocalStorage<MarkInterface[]>('marks', []);
+  const [periods, setPeriods] = useLocalStorage<PeriodInterface[]>(
+    "periods",
+    map(range(12), (i) => ({
+      id: i.toString(),
+      value: format(addQuarters(startOfYear(new Date()), i), "QQQQ yyyy"),
+      color: colors[i],
+    }))
+  );
+  const [subjects, setSubjects] = useLocalStorage<string[]>(
+    "subjects",
+    find(categories, ({ name }) => toLower(name) === toLower(activeCategory))
+      ?.options || []
+  );
 
-  const onChangeSubjects = (value: keyof typeof subjectsDB) => {
-    setActiveSubject(value);
-    setSubjects(subjectsDB[value]);
+  const [marks, setMarks] = useLocalStorage<MarkInterface[]>("marks", []);
+
+  const onChangeSubjects = (value: string) => {
+    setActiveCategory(value);
+    setSubjects(
+      find(categories, ({ name }) => toLower(name) === toLower(value))
+        ?.options || []
+    );
     setMarks([]);
   };
 
@@ -71,10 +84,10 @@ function App() {
     const fullMark = MAX_MARK;
 
     each(
-      filter(subjects, (item) => !!item.value),
+      filter(subjects, (item) => !!item),
       (subject) => {
         const item: DataItemInteface = {
-          subject: subject.value,
+          subject: subject,
           fullMark,
         };
 
@@ -84,7 +97,7 @@ function App() {
           }
           const mark = find(marks, {
             periodId: period.id,
-            subjectId: subject.id,
+            subjectId: subject,
           });
           if (mark) {
             item[period.value] = mark.value;
@@ -105,8 +118,8 @@ function App() {
   const onDownloadImage = async () => {
     if (chartRef?.current) {
       const canvas = await html2canvas(chartRef.current);
-      const dataURL = canvas.toDataURL('image/png');
-      downloadjs(dataURL, 'download.png', 'image/png');
+      const dataURL = canvas.toDataURL("image/png");
+      downloadjs(dataURL, "download.png", "image/png");
     }
   };
 
@@ -117,7 +130,8 @@ function App() {
           className={styles.chart}
           width={1000}
           height={600}
-          data={data}>
+          data={data}
+        >
           <PolarGrid />
           <PolarRadiusAxis
             fill="transparent"
@@ -125,14 +139,14 @@ function App() {
             angle={90}
             tickCount={11}
             tick={{
-              fontSize: '14px',
-              style: { transform: 'translateX(2px)' },
+              fontSize: "14px",
+              style: { transform: "translateX(2px)" },
             }}
           />
           <PolarAngleAxis
             dataKey="subject"
             tickSize={20}
-            tick={{ fontSize: '20px', fill: 'black' }}
+            tick={{ fontSize: "20px", fill: "black" }}
           />
           <Legend />
           {map(activePeriods, (period, idx) => {
@@ -145,7 +159,7 @@ function App() {
                 fill={colors[idx]}
                 fillOpacity={0.1}
                 strokeWidth={2}
-                dot={{ fill: '#8884d8', r: 2 }}
+                dot={{ fill: "#8884d8", r: 2 }}
               />
             );
           })}
@@ -154,129 +168,132 @@ function App() {
       <button className={styles.button} onClick={onDownloadImage}>
         Download Image
       </button>
-      <table className={styles.table}>
-        <thead>
-          <tr>
-            <th className={clsx(styles.th, styles.periodHead)}>Period</th>
-            {map(periods, (period) => {
-              return (
-                <th
-                  className={clsx(styles.th, styles.periodTh)}
-                  key={period.id}>
-                  <input
-                    className={styles.input}
-                    type="text"
-                    value={period.value}
-                    onChange={(e) => {
-                      setPeriods((prev) => {
-                        const newData = [...prev];
-                        const idx = findIndex(newData, { id: period.id });
-                        if (idx >= 0) {
-                          newData.splice(idx, 1, {
-                            ...newData[idx],
-                            value: e.target.value,
-                          });
-                        }
-                        return newData;
-                      });
-                    }}
-                  />
+      <div className={styles.tableWrapper}>
+        <table className={styles.table}>
+          <thead>
+            <tr>
+              <th className={clsx(styles.th, styles.periodHead)}>Period</th>
+              {map(periods, (period) => {
+                return (
+                  <th
+                    className={clsx(styles.th, styles.periodTh)}
+                    key={period.id}
+                    style={{ backgroundColor: period.color }}
+                  >
+                    <input
+                      className={styles.input}
+                      type="text"
+                      value={period.value}
+                      onChange={(e) => {
+                        setPeriods((prev) => {
+                          const newData = [...prev];
+                          const idx = findIndex(newData, { id: period.id });
+                          if (idx >= 0) {
+                            newData.splice(idx, 1, {
+                              ...newData[idx],
+                              value: e.target.value,
+                            });
+                          }
+                          return newData;
+                        });
+                      }}
+                    />
+                  </th>
+                );
+              })}
+            </tr>
+            <tr>
+              <th className={styles.th}>
+                Subject
+                <select
+                  className={styles.select}
+                  value={activeCategory}
+                  onChange={(e) => onChangeSubjects(e.target.value)}
+                >
+                  {map(map(categories, "name"), (name) => (
+                    <option key={name} value={name}>
+                      {name}
+                    </option>
+                  ))}
+                </select>
+              </th>
+              {map(periods, (period) => (
+                <th key={period.id} className={styles.th}>
+                  Mark
                 </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {map(subjects, (subject) => {
+              return (
+                <tr key={subject}>
+                  <td className={styles.td}>
+                    <input
+                      type="text"
+                      className={styles.input}
+                      value={subject}
+                      onChange={(e) => {
+                        setSubjects((prev) => {
+                          const newData = [...prev];
+                          const idx = findIndex(
+                            newData,
+                            (dataName) => dataName === subject
+                          );
+                          if (idx >= 0) {
+                            newData.splice(idx, 1, e.target.value);
+                          }
+                          return newData;
+                        });
+                      }}
+                    />
+                  </td>
+                  {map(periods, (period) => {
+                    const mark = find(marks, {
+                      periodId: period.id,
+                      subjectId: subject,
+                    });
+                    return (
+                      <td className={styles.td} key={period.id}>
+                        <input
+                          className={styles.input}
+                          type="number"
+                          tabIndex={period.value ? undefined : -1}
+                          value={mark?.value}
+                          min={0}
+                          max={MAX_MARK}
+                          onChange={(e) => {
+                            setMarks((prev) => {
+                              const newData = [...prev];
+                              const idx = findIndex(newData, {
+                                periodId: period.id,
+                                subjectId: subject,
+                              });
+                              if (idx >= 0) {
+                                newData.splice(idx, 1, {
+                                  ...newData[idx],
+                                  value: parseFloat(e.target.value),
+                                });
+                              } else {
+                                newData.push({
+                                  periodId: period.id,
+                                  subjectId: subject,
+                                  value: parseFloat(e.target.value),
+                                });
+                              }
+                              return newData;
+                            });
+                          }}
+                        />
+                      </td>
+                    );
+                  })}
+                </tr>
               );
             })}
-          </tr>
-          <tr>
-            <th className={styles.th}>
-              Subject
-              <select
-                className={styles.select}
-                value={activeSubject}
-                onChange={(e) =>
-                  onChangeSubjects(e.target.value as keyof typeof subjectsDB)
-                }>
-                {map(keys(subjectsDB), (key) => (
-                  <option key={key} value={key}>
-                    {key}
-                  </option>
-                ))}
-              </select>
-            </th>
-            {map(periods, (period) => (
-              <th key={period.id} className={styles.th}>
-                Mark
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {map(subjects, (subject) => {
-            return (
-              <tr key={subject.id}>
-                <td className={styles.td}>
-                  <input
-                    type="text"
-                    className={styles.input}
-                    value={subject.value}
-                    onChange={(e) => {
-                      setSubjects((prev) => {
-                        const newData = [...prev];
-                        const idx = findIndex(newData, { id: subject.id });
-                        if (idx >= 0) {
-                          newData.splice(idx, 1, {
-                            ...newData[idx],
-                            value: e.target.value,
-                          });
-                        }
-                        return newData;
-                      });
-                    }}
-                  />
-                </td>
-                {map(periods, (period) => {
-                  const mark = find(marks, {
-                    periodId: period.id,
-                    subjectId: subject.id,
-                  });
-                  return (
-                    <td className={styles.td} key={period.id}>
-                      <input
-                        className={styles.input}
-                        type="number"
-                        tabIndex={period.value ? undefined : -1}
-                        value={mark?.value}
-                        min={0}
-                        max={MAX_MARK}
-                        onChange={(e) => {
-                          setMarks((prev) => {
-                            const newData = [...prev];
-                            const idx = findIndex(newData, {
-                              periodId: period.id,
-                              subjectId: subject.id,
-                            });
-                            if (idx >= 0) {
-                              newData.splice(idx, 1, {
-                                ...newData[idx],
-                                value: parseFloat(e.target.value),
-                              });
-                            } else {
-                              newData.push({
-                                periodId: period.id,
-                                subjectId: subject.id,
-                                value: parseFloat(e.target.value),
-                              });
-                            }
-                            return newData;
-                          });
-                        }}
-                      />
-                    </td>
-                  );
-                })}
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
+          </tbody>
+        </table>
+      </div>
     </main>
   );
 }
