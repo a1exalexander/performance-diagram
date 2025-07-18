@@ -251,9 +251,9 @@ function App() {
               </tr>
             </thead>
             <tbody>
-              {map(subjects, (subject) => {
+              {map(subjects, (subject, index) => {
                 return (
-                  <tr key={subject}>
+                  <tr key={index}>
                     <td className={styles.td}>
                       <input
                         type="text"
@@ -262,13 +262,7 @@ function App() {
                         onChange={(e) => {
                           setSubjects((prev) => {
                             const newData = [...prev];
-                            const idx = findIndex(
-                              newData,
-                              (dataName) => dataName === subject
-                            );
-                            if (idx >= 0) {
-                              newData.splice(idx, 1, e.target.value);
-                            }
+                            newData[index] = e.target.value;
                             return newData;
                           });
                         }}
