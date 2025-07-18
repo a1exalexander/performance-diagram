@@ -7,6 +7,7 @@ import {
   PolarGrid,
   PolarAngleAxis,
   PolarRadiusAxis,
+  ResponsiveContainer,
 } from "recharts";
 import { useBoolean, useLocalStorage, useTimeout } from "usehooks-ts";
 import { addQuarters, format, startOfYear } from "date-fns";
@@ -143,44 +144,46 @@ function App() {
   return (
     <main className={styles.container}>
       <div className={styles.chartWrapper} ref={chartRef}>
-        <RadarChart
-          className={styles.chart}
-          width={1000}
-          height={600}
-          data={data}
-        >
-          <PolarGrid />
-          <PolarRadiusAxis
-            fill="transparent"
-            domain={[0, 10]}
-            angle={90}
-            tickCount={11}
-            tick={{
-              fontSize: "14px",
-              style: { transform: "translateX(2px)" },
-            }}
-          />
-          <PolarAngleAxis
-            dataKey="subject"
-            tickSize={20}
-            tick={{ fontSize: "20px", fill: "black" }}
-          />
-          <Legend />
-          {map(activePeriods, (period, idx) => {
-            return (
-              <Radar
-                name={period.value}
-                key={period.id}
-                dataKey={period.value}
-                stroke={colors[idx]}
-                fill={colors[idx]}
-                fillOpacity={0.1}
-                strokeWidth={2}
-                dot={{ fill: "#8884d8", r: 2 }}
-              />
-            );
-          })}
-        </RadarChart>
+        <ResponsiveContainer width={1000} height={800}>
+          <RadarChart
+            className={styles.chart}
+            outerRadius={250}
+            data={data}
+          >
+            <PolarGrid />
+            <PolarRadiusAxis
+              fill="transparent"
+              domain={[0, 10]}
+              angle={90}
+              tickCount={11}
+              tick={{
+                fontSize: "14px",
+                style: { transform: "translateX(2px)" },
+              }}
+            />
+            <PolarAngleAxis
+              dataKey="subject"
+              tickSize={20}
+              width={200}
+              tick={{ fontSize: "18px" }}
+            />
+            <Legend />
+            {map(activePeriods, (period, idx) => {
+              return (
+                <Radar
+                  name={period.value}
+                  key={period.id}
+                  dataKey={period.value}
+                  stroke={colors[idx]}
+                  fill={colors[idx]}
+                  fillOpacity={0.1}
+                  strokeWidth={2}
+                  dot={{ fill: "#8884d8", r: 2 }}
+                />
+              );
+            })}
+          </RadarChart>
+        </ResponsiveContainer>
       </div>
       <div className={styles.buttons}>
         <button className={styles.button} onClick={onDownloadImage}>
