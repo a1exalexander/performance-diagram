@@ -51,7 +51,7 @@ const defaultCategory = first(categories)?.name as string;
 
 const defaultPeriods = map(range(12), (i) => ({
   id: i.toString(),
-  value: format(addQuarters(startOfYear(new Date()), i), "QQQQ yyyy"),
+  value: i < 6 ? format(addQuarters(startOfYear(new Date()), i), "QQQQ yyyy"): '',
   color: colors[i],
 }));
 const defaultSubjects =
