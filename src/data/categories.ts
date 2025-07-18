@@ -1,5 +1,14 @@
 export const categories = [
   {
+    name: "well-being",
+    options: [
+      "Наскільки я задоволений робою в компанії в цілому?",
+      "Як я оцінюю рівень навантеження на роботі?",
+      "Як я оцінюю свій рівень стресу в цілому?",
+      "Наскільки я відчуваю значенмість своєї роботи?",
+    ],
+  },
+  {
     name: "communication",
     options: [
       "Cross-functional Team Communication",
